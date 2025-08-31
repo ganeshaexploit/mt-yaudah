@@ -1,0 +1,132 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+-- Teleport Points
+local teleportPoints = {
+    Vector3.new(-739.16, 93.00, -31.67),
+    Vector3.new(-41.64, 93.10, -76.02),
+    Vector3.new(555.06, 96.59, -162.58),
+    Vector3.new(630.34, 235.19, -116.74),
+    Vector3.new(667.44, 373.17, -542.18),
+    Vector3.new(293.70, 287.47, -888.90),
+    Vector3.new(321.22, 514.42, -830.89),
+}
+
+-- Variables
+local teleportEnabled = false
+local currentIndex = 1
+local teleportConnection -- RunService connection untuk loop
+
+-- Function: buat UI
+local function createUI()
+    local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("TeleportGUI")
+    if oldGui then oldGui:Destroy() end
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "TeleportGUI"
+    ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 200, 0, 80)
+    MainFrame.Position = UDim2.new(0.5, -100, 0, 50)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.AnchorPoint = Vector2.new(0.5, 0)
+    MainFrame.Parent = ScreenGui
+
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Size = UDim2.new(0, 180, 0, 40)
+    ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    ToggleButton.TextColor3 = Color3.new(1, 1, 1)
+    ToggleButton.Text = "Teleport: OFF"
+    ToggleButton.Parent = MainFrame
+
+    -- Toggle logic
+    ToggleButton.MouseButton1Click:Connect(function()
+        teleportEnabled = not teleportEnabled
+        ToggleButton.Text = teleportEnabled and "Teleport: ON" or "Teleport: OFF"
+
+        if teleportEnabled then
+            -- Start teleport loop via RunService.Heartbeat
+            if teleportConnection then teleportConnection:Disconnect() end
+            currentIndex = 1
+            teleportConnection = RunService.Heartbeat:Connect(function()
+                if not teleportEnabled then
+                    teleportConnection:Disconnect()
+                    teleportConnection = nil
+                    return
+                end
+
+                if hrp and humanoid and humanoid.Health > 0 then
+                    hrp.CFrame = CFrame.new(teleportPoints[currentIndex])
+
+                    -- titik terakhir -> auto reset
+                    if currentIndex == #teleportPoints then
+                        wait(2)
+                        humanoid.Health = 0
+                    end
+
+                    currentIndex = currentIndex + 1
+                    if currentIndex > #teleportPoints then
+                        currentIndex = 1
+                    end
+                end
+            end)
+        else
+            -- OFF -> disconnect loop
+            if teleportConnection then
+                teleportConnection:Disconnect()
+                teleportConnection = nil
+            end
+        end
+    end)
+end
+
+-- Buat UI pertama kali
+createUI()
+
+-- Auto reconnect loop setelah respawn
+player.CharacterAdded:Connect(function(char)
+    character = char
+    hrp = character:WaitForChild("HumanoidRootPart")
+    humanoid = character:WaitForChild("Humanoid")
+
+    -- pastikan UI tetap ada
+    if not player.PlayerGui:FindFirstChild("TeleportGUI") then
+        createUI()
+    end
+
+    -- restart teleport loop jika sebelumnya ON
+    if teleportEnabled then
+        if teleportConnection then teleportConnection:Disconnect() end
+        currentIndex = 1
+        teleportConnection = RunService.Heartbeat:Connect(function()
+            if not teleportEnabled then
+                teleportConnection:Disconnect()
+                teleportConnection = nil
+                return
+            end
+
+            if hrp and humanoid and humanoid.Health > 0 then
+                hrp.CFrame = CFrame.new(teleportPoints[currentIndex])
+
+                if currentIndex == #teleportPoints then
+                    wait(2)
+                    humanoid.Health = 0
+                end
+
+                currentIndex = currentIndex + 1
+                if currentIndex > #teleportPoints then
+                    currentIndex = 1
+                end
+            end
+        end)
+    end
+end)
