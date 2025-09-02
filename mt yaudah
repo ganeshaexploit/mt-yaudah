@@ -1,3 +1,10 @@
+-- ⚡ Brutal Teleport Multi-Point (Loop + Auto Reset) by Ganesha Exploit ⚡
+-- ✅ Teleport CFrame instan
+-- ✅ Auto reset 2 detik setelah checkpoint terakhir
+-- ✅ Loop otomatis setelah respawn
+-- ✅ Tanpa UI & tanpa hotkey
+
+-- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -6,6 +13,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
+-- Teleport points
 local teleportPoints = {
     Vector3.new(-739.16, 93.00, -31.67),
     Vector3.new(-41.64, 93.10, -76.02),
@@ -16,22 +24,21 @@ local teleportPoints = {
     Vector3.new(321.22, 514.42, -830.89),
 }
 
-local teleportEnabled = false
-
-local function teleportAllRenderStepped()
+-- Fungsi teleport
+local function teleportAll()
     local index = 1
     local connection
     connection = RunService.RenderStepped:Connect(function()
-        if not teleportEnabled or not hrp or humanoid.Health <= 0 then
+        if not hrp or humanoid.Health <= 0 then
             connection:Disconnect()
             return
         end
 
         hrp.CFrame = CFrame.new(teleportPoints[index])
-        index = index + 1
+        index += 1
 
         if index > #teleportPoints then
-            -- Auto reset titik terakhir setelah 2 detik
+            -- Auto reset setelah 2 detik
             task.delay(2, function()
                 if humanoid and humanoid.Health > 0 then
                     humanoid.Health = 0
@@ -42,52 +49,14 @@ local function teleportAllRenderStepped()
     end)
 end
 
-local function createUI()
-    local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("TeleportGUI")
-    if oldGui then oldGui:Destroy() end
-
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "TeleportGUI"
-    ScreenGui.Parent = player:WaitForChild("PlayerGui")
-
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 200, 0, 80)
-    MainFrame.Position = UDim2.new(0.5, -100, 0, 50)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    MainFrame.BorderSizePixel = 0
-    MainFrame.AnchorPoint = Vector2.new(0.5, 0)
-    MainFrame.Parent = ScreenGui
-
-    local ToggleButton = Instance.new("TextButton")
-    ToggleButton.Size = UDim2.new(0, 180, 0, 40)
-    ToggleButton.Position = UDim2.new(0, 10, 0, 10)
-    ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    ToggleButton.TextColor3 = Color3.new(1, 1, 1)
-    ToggleButton.Text = "Teleport: OFF"
-    ToggleButton.Parent = MainFrame
-
-    ToggleButton.MouseButton1Click:Connect(function()
-        teleportEnabled = not teleportEnabled
-        ToggleButton.Text = teleportEnabled and "Teleport: ON" or "Teleport: OFF"
-
-        if teleportEnabled then
-            teleportAllRenderStepped()
-        end
-    end)
-end
-
-createUI()
+-- Auto jalan saat spawn
+teleportAll()
 
 player.CharacterAdded:Connect(function(char)
     character = char
     hrp = character:WaitForChild("HumanoidRootPart")
     humanoid = character:WaitForChild("Humanoid")
 
-    if not player.PlayerGui:FindFirstChild("TeleportGUI") then
-        createUI()
-    end
-
-    if teleportEnabled then
-        teleportAllRenderStepped()
-    end
+    -- Mulai lagi otomatis setelah respawn
+    teleportAll()
 end)
