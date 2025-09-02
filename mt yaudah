@@ -1,17 +1,14 @@
--- ⚡ Brutal Teleport Multi-Point (Loop + Auto Reset) by Ganesha Exploit ⚡
--- ✅ Teleport CFrame instan
+-- ⚡ Brutal Teleport Multi-Point (Loop + Auto Reset + 0.2s Delay) by Ganesha Exploit ⚡
+-- ✅ Teleport CFrame dengan delay 0.2 detik per checkpoint
 -- ✅ Auto reset 2 detik setelah checkpoint terakhir
--- ✅ Loop otomatis setelah respawn
--- ✅ Tanpa UI & tanpa hotkey
+-- ✅ Loop otomatis saat respawn
+-- ✅ Toggle ON/OFF dengan UI modern
+-- ✅ UI tetap ada setelah respawn
 
 -- Services
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:WaitForChild("Humanoid")
+local gui = player:WaitForChild("PlayerGui")
 
 -- Teleport points
 local teleportPoints = {
@@ -24,39 +21,92 @@ local teleportPoints = {
     Vector3.new(321.22, 514.42, -830.89),
 }
 
--- Fungsi teleport
-local function teleportAll()
-    local index = 1
-    local connection
-    connection = RunService.RenderStepped:Connect(function()
-        if not hrp or humanoid.Health <= 0 then
-            connection:Disconnect()
-            return
-        end
+-- State
+local isTeleporting = false
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
 
-        hrp.CFrame = CFrame.new(teleportPoints[index])
-        index += 1
+-- Fungsi teleport loop dengan delay 0.2 detik
+local function teleportLoop()
+    task.spawn(function()
+        while isTeleporting and humanoid and humanoid.Health > 0 do
+            for i, point in ipairs(teleportPoints) do
+                if not isTeleporting or humanoid.Health <= 0 then break end
+                hrp.CFrame = CFrame.new(point) -- teleport instan ke checkpoint
+                task.wait(0.2) -- delay 0.2 detik per checkpoint
+            end
 
-        if index > #teleportPoints then
+            if not isTeleporting then break end
+
             -- Auto reset setelah 2 detik
-            task.delay(2, function()
-                if humanoid and humanoid.Health > 0 then
-                    humanoid.Health = 0
-                end
-            end)
-            connection:Disconnect()
+            task.wait(2)
+            if humanoid and humanoid.Health > 0 then
+                humanoid.Health = 0
+            end
+
+            -- Tunggu respawn
+            task.wait(1)
+            character = player.Character
+            if character then
+                hrp = character:WaitForChild("HumanoidRootPart")
+                humanoid = character:WaitForChild("Humanoid")
+            end
         end
     end)
 end
 
--- Auto jalan saat spawn
-teleportAll()
+-- Start/Stop
+local function startTeleport()
+    if isTeleporting then return end
+    isTeleporting = true
+    teleportLoop()
+end
 
+local function stopTeleport()
+    isTeleporting = false
+end
+
+-- UI Modern
+if not gui:FindFirstChild("TeleportUI") then
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "TeleportUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = gui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 200, 0, 80)
+    frame.Position = UDim2.new(0.5, -100, 0.1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Size = UDim2.new(1, -20, 0, 40)
+    toggleButton.Position = UDim2.new(0, 10, 0, 20)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.Text = "Start Teleport"
+    toggleButton.Parent = frame
+
+    toggleButton.MouseButton1Click:Connect(function()
+        if isTeleporting then
+            stopTeleport()
+            toggleButton.Text = "Start Teleport"
+        else
+            startTeleport()
+            toggleButton.Text = "Stop Teleport"
+        end
+    end)
+end
+
+-- Auto reconnect saat respawn
 player.CharacterAdded:Connect(function(char)
     character = char
     hrp = character:WaitForChild("HumanoidRootPart")
     humanoid = character:WaitForChild("Humanoid")
 
-    -- Mulai lagi otomatis setelah respawn
-    teleportAll()
+    if isTeleporting then
+        teleportLoop()
+    end
 end)
